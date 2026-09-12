@@ -18,12 +18,20 @@ const PORT = process.env.PORT || 3000;
 const WEBHOOK_VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN;
 const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
 const INSTAGRAM_ACCOUNT_ID = process.env.INSTAGRAM_ACCOUNT_ID;
-const META_APP_SECRET = process.env.META_APP_SECRET;
+const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET;
+
+const FACEBOOK_PAGE_ACCESS_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+
+const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID;
+
+const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET;
 
 // Set this to the Graph API version you are using in Meta.
 const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || "v24.0";
 
-const GRAPH_BASE_URL = `https://graph.instagram.com/${GRAPH_API_VERSION}`;
+const INSTAGRAM_GRAPH_BASE_URL = `https://graph.instagram.com/${GRAPH_API_VERSION}`;
+
+const FACEBOOK_GRAPH_BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 
 /*
@@ -44,8 +52,20 @@ if (!INSTAGRAM_ACCOUNT_ID) {
     console.warn("WARNING: INSTAGRAM_ACCOUNT_ID is not set");
 }
 
-if (!META_APP_SECRET) {
-    console.warn("WARNING: META_APP_SECRET is not set");
+if (!INSTAGRAM_APP_SECRET) {
+    console.warn("WARNING: INSTAGRAM_APP_SECRET is not set");
+}
+
+if (!FACEBOOK_PAGE_ACCESS_TOKEN) {
+    console.warn("WARNING: FACEBOOK_PAGE_ACCESS_TOKEN is not set");
+}
+
+if (!FACEBOOK_PAGE_ID) {
+    console.warn("WARNING: FACEBOOK_PAGE_ID is not set");
+}
+
+if (!FACEBOOK_APP_SECRET) {
+    console.warn("WARNING: FACEBOOK_APP_SECRET is not set");
 }
 
 
@@ -140,13 +160,10 @@ app.get("/webhook", (req, res) => {
 |
 */
 
-function verifyMetaSignature(req) {
-    if (!META_APP_SECRET) {
-        console.warn(
-            "META_APP_SECRET is not configured. Skipping signature verification."
-        );
-
-        return true;
+function verifyMetaSignature(req, secret) {
+    if (!secret) {
+        console.error("Webhook app secret is not configured");
+        return false;
     }
 
     const signature = req.headers["x-hub-signature-256"];
@@ -164,7 +181,7 @@ function verifyMetaSignature(req) {
     const expectedSignature =
         "sha256=" +
         crypto
-            .createHmac("sha256", META_APP_SECRET)
+            .createHmac("sha256", secret)
             .update(req.rawBody)
             .digest("hex");
 
@@ -189,58 +206,79 @@ function verifyMetaSignature(req) {
 */
 
 app.post("/webhook", async (req, res) => {
-    /*
-     * IMPORTANT:
-     * Respond quickly to Meta.
-     *
-     * We acknowledge the webhook first, then process the payload.
-     */
-
-    if (!verifyMetaSignature(req)) {
-        console.error("Invalid Meta webhook signature");
-
-        return res.status(403).send("Invalid signature");
-    }
-
-    // Acknowledge immediately.
+    // Acknowledge Meta immediately.
     res.status(200).send("EVENT_RECEIVED");
 
     try {
         const body = req.body;
 
         console.log("\n========================================");
-        console.log("Instagram webhook received");
+        console.log("Meta webhook received");
+        console.log("Object:", body?.object);
         console.log("========================================");
 
-        console.log(JSON.stringify(body, null, 2));
+        /*
+         * Determine which Meta product sent the webhook.
+         */
+        let secret;
+
+        if (body?.object === "instagram") {
+            secret = INSTAGRAM_APP_SECRET;
+        } else if (body?.object === "page") {
+            secret = FACEBOOK_APP_SECRET;
+        } else {
+            console.log("Unknown webhook object:", body?.object);
+            return;
+        }
 
         /*
-        |--------------------------------------------------------------------------
-        | Validate object
-        |--------------------------------------------------------------------------
-        */
+         * Verify the signature using the correct secret.
+         */
+        if (!verifyMetaSignature(req, secret)) {
+            console.error(
+                `Invalid ${body.object} webhook signature`
+            );
+            return;
+        }
 
-        if (!body || body.object !== "instagram") {
-            console.log("Ignoring non-Instagram webhook");
+        console.log(
+            `Valid ${body.object} webhook signature`
+        );
+
+        /*
+         * Instagram
+         */
+        if (body.object === "instagram") {
+            const entries = body.entry || [];
+
+            for (const entry of entries) {
+                const messagingEvents = entry.messaging || [];
+
+                for (const event of messagingEvents) {
+                    await processInstagramMessage(event);
+                }
+            }
 
             return;
         }
 
         /*
-        |--------------------------------------------------------------------------
-        | Process entries
-        |--------------------------------------------------------------------------
-        */
+         * Facebook Page / Messenger
+         */
+        if (body.object === "page") {
+            const entries = body.entry || [];
 
-        const entries = body.entry || [];
+            for (const entry of entries) {
+                const messagingEvents = entry.messaging || [];
 
-        for (const entry of entries) {
-            const messagingEvents = entry.messaging || [];
-
-            for (const event of messagingEvents) {
-                await processInstagramMessage(event);
+                for (const event of messagingEvents) {
+                    await processFacebookMessage(event);
+                }
             }
+
+            return;
         }
+
     } catch (error) {
         console.error("Webhook processing error:", error);
     }
@@ -358,6 +396,81 @@ async function processInstagramMessage(event) {
     console.log("Unhandled Instagram event");
 }
 
+async function processFacebookMessage(event) {
+    console.log("\n----------------------------------------");
+    console.log("Facebook Messenger event");
+    console.log("----------------------------------------");
+
+    /*
+     * Ignore messages sent by our own Page.
+     */
+    if (event.message?.is_echo) {
+        console.log("Ignoring Facebook echo message");
+        return;
+    }
+
+    const senderId = event.sender?.id;
+    const recipientId = event.recipient?.id;
+    const message = event.message;
+
+    if (!senderId) {
+        console.log("No Facebook sender ID");
+        return;
+    }
+
+    if (message?.text) {
+        const text = message.text;
+
+        console.log("Facebook Sender:", senderId);
+        console.log("Facebook Recipient:", recipientId);
+        console.log("Message:", text);
+        console.log("Message ID:", message.mid);
+        console.log(
+            "Timestamp:",
+            event.timestamp
+                ? new Date(event.timestamp).toISOString()
+                : "unknown"
+        );
+
+        /*
+         * Later:
+         * save this message to the same inbox database
+         * used by Instagram.
+         */
+
+        return;
+    }
+
+    if (message?.attachments) {
+        console.log(
+            "Facebook Attachments:",
+            message.attachments
+        );
+
+        return;
+    }
+
+    if (event.postback) {
+        console.log(
+            "Facebook Postback:",
+            event.postback
+        );
+
+        return;
+    }
+
+    if (event.reaction) {
+        console.log(
+            "Facebook Reaction:",
+            event.reaction
+        );
+
+        return;
+    }
+
+    console.log("Unhandled Facebook Messenger event");
+}
+
 
 /*
 |--------------------------------------------------------------------------
@@ -447,7 +560,7 @@ app.post("/api/messages/send", async (req, res) => {
 
 async function sendInstagramMessage(recipientId, text) {
     const url =
-        `${GRAPH_BASE_URL}/${INSTAGRAM_ACCOUNT_ID}/messages`;
+        `${INSTAGRAM_GRAPH_BASE_URL}/${INSTAGRAM_ACCOUNT_ID}/messages`;
 
     const response = await fetch(url, {
         method: "POST",
@@ -713,7 +826,8 @@ app.listen(PORT, "0.0.0.0", () => {
     console.log(`Webhook: /webhook`);
     console.log(`Health: /health`);
     console.log(`Send API: /api/messages/send`);
-    console.log(`Graph API: ${GRAPH_BASE_URL}`);
+    console.log(`Instagram Graph API: ${INSTAGRAM_GRAPH_BASE_URL}`);
+    console.log(`Facebook Graph API: ${FACEBOOK_GRAPH_BASE_URL}`);
     console.log("========================================");
     console.log("");
 });
