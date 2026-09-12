@@ -509,6 +509,201 @@ app.use((err, req, res, next) => {
 |--------------------------------------------------------------------------
 */
 
+app.get("/privacy-policy", (req, res) => {
+    res.type("html").send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Privacy Policy - Beacon DM</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.7;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            color: #222;
+        }
+
+        h1, h2 {
+            color: #111;
+        }
+
+        .updated {
+            color: #666;
+        }
+
+        footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Privacy Policy</h1>
+
+    <p class="updated">
+        Last updated: September 12, 2026
+    </p>
+
+    <p>
+        This Privacy Policy explains how Beacon DM ("we", "our", or "the app")
+        handles information when you use our application.
+    </p>
+
+    <h2>1. About Beacon DM</h2>
+
+    <p>
+        Beacon DM is a proof-of-concept messaging application designed to
+        receive and manage Instagram direct messages through the Instagram
+        API.
+    </p>
+
+    <p>
+        The application is currently being developed and tested as a
+        proof-of-concept.
+    </p>
+
+    <h2>2. Information We Process</h2>
+
+    <p>
+        When an Instagram user sends a message to the Instagram account
+        connected to Beacon DM, the application may receive information
+        provided through the Instagram API, including:
+    </p>
+
+    <ul>
+        <li>Instagram user identifier</li>
+        <li>Message content</li>
+        <li>Message identifier</li>
+        <li>Message timestamp</li>
+        <li>Message attachments when provided by Instagram</li>
+    </ul>
+
+    <p>
+        We only process information necessary for the operation and testing
+        of the messaging functionality.
+    </p>
+
+    <h2>3. How We Use Information</h2>
+
+    <p>Information received through the Instagram API may be used to:</p>
+
+    <ul>
+        <li>Receive Instagram direct messages</li>
+        <li>Display messages in the Beacon DM application</li>
+        <li>Organize and manage conversations</li>
+        <li>Send replies to Instagram users</li>
+        <li>Test and improve the proof-of-concept application</li>
+        <li>Diagnose technical problems</li>
+    </ul>
+
+    <h2>4. Data Storage</h2>
+
+    <p>
+        During the proof-of-concept phase, message information may be
+        temporarily processed or stored by the application's backend.
+    </p>
+
+    <p>
+        We do not sell personal information or use Instagram message data
+        for advertising purposes.
+    </p>
+
+    <h2>5. Sharing of Information</h2>
+
+    <p>
+        We do not sell or rent personal information.
+    </p>
+
+    <p>
+        Information may be processed by infrastructure and hosting providers
+        used to operate the application, but only as necessary to provide
+        the application's functionality.
+    </p>
+
+    <h2>6. Instagram and Meta</h2>
+
+    <p>
+        Beacon DM uses Meta's Instagram APIs to provide messaging
+        functionality. Instagram and Meta may independently process
+        information according to their own policies and terms.
+    </p>
+
+    <p>
+        Beacon DM does not control the privacy practices of Instagram or
+        Meta.
+    </p>
+
+    <h2>7. Data Security</h2>
+
+    <p>
+        We take reasonable technical measures to protect information
+        processed by the application.
+    </p>
+
+    <p>
+        Access credentials such as API access tokens and application secrets
+        are intended to be kept securely on the backend and are not intended
+        to be exposed to users of the application.
+    </p>
+
+    <h2>8. Data Deletion</h2>
+
+    <p>
+        If you would like information associated with your interaction with
+        Beacon DM to be deleted, you may request deletion by contacting us
+        using the email address below.
+    </p>
+
+    <p>
+        Please include enough information for us to identify the relevant
+        data without unnecessarily providing sensitive information.
+    </p>
+
+    <h2>9. Children's Privacy</h2>
+
+    <p>
+        Beacon DM is not intended to knowingly collect personal information
+        from children.
+    </p>
+
+    <h2>10. Changes to This Privacy Policy</h2>
+
+    <p>
+        We may update this Privacy Policy as the application develops.
+        Changes will be reflected on this page.
+    </p>
+
+    <h2>11. Contact</h2>
+
+    <p>
+        If you have questions about this Privacy Policy or would like to
+        request deletion of information, please contact:
+    </p>
+
+    <p>
+        <strong>Email:</strong>
+        bemalsdvanitha123@gmail.com
+    </p>
+
+    <footer>
+        &copy; 2026 Beacon DM. All rights reserved.
+    </footer>
+
+</body>
+</html>
+    `);
+});
+
 app.listen(PORT, "0.0.0.0", () => {
     console.log("");
     console.log("========================================");
